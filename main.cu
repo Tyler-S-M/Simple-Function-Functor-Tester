@@ -3,8 +3,10 @@
 #include <iostream>
 
 #define NUM_THREADS 1024
-#define NUM_BLOCKS 80
 #define FLOP_COUNT 10000
+
+int NUM_BLOCKS = 0;
+__device__ int d_NUM_BLOCKS = 0;
 
 #define OPERATION for (int j = 0; j < FLOP_COUNT; ++j){ \
                     d_data[tid] *= 2.0f;                \
@@ -92,7 +94,7 @@ __global__ void scenario2(float *d_data, int depth = 0) {
         //dynamic parallelism block with 1024 threads
         float *d_temp;
         cudaMalloc(&d_temp, NUM_THREADS * sizeof(float));
-        scenario2<<<NUM_BLOCKS, NUM_THREADS>>>(d_temp, 1);
+        scenario2<<<d_NUM_BLOCKS, NUM_THREADS>>>(d_temp, 1);
         cudaDeviceSynchronize();
     } 
 
@@ -145,79 +147,90 @@ int main() {
     cudaMalloc(&d_data5, NUM_THREADS * sizeof(float));
     cudaMalloc(&d_data6, NUM_THREADS * sizeof(float));
 
-    for (int i = 0; i < NUM_THREADS; ++i) h_data[i] = 1.0f;
+    //for each value of 'i' we run the 
+    //tests and show the results.
+    for (int i = 40; i <= 240; i += 40){
 
-    cudaMemcpy(d_data1, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_data2, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_data3, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_data4, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_data5, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_data6, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        NUM_BLOCKS = i;
+        cudaMemcpyToSymbol(d_NUM_BLOCKS, &NUM_BLOCKS, sizeof(int), 0, cudaMemcpyHostToDevice);
 
-    //Warm the device up to account for potential overhead
-    scenario1<<<NUM_BLOCKS, NUM_THREADS>>>(d_data1);
-    scenario2<<<NUM_BLOCKS, NUM_THREADS>>>(d_data2);
-    scenario3<<<NUM_BLOCKS, NUM_THREADS>>>(d_data3);
-    scenario4<<<NUM_BLOCKS, NUM_THREADS>>>(d_data4);
-    scenario5<<<NUM_BLOCKS, NUM_THREADS>>>(d_data5);
-    scenario6<<<NUM_BLOCKS, NUM_THREADS>>>(d_data6);
-    cudaDeviceSynchronize();
+        for (int j = 0; j < NUM_THREADS; j++) h_data[j] = 1.0 * j;
 
-    //Run Scenario 1
-    cudaEventRecord(start_event, 0);
-    scenario1<<<NUM_BLOCKS, NUM_THREADS>>>(d_data1);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        cudaMemcpy(d_data1, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_data2, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_data3, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_data4, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_data5, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_data6, h_data, NUM_THREADS * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaEventElapsedTime(&scenario1_time_ms, start_event, stop_event);
+        //Warm the device up to account for potential overhead
+        scenario1<<<NUM_BLOCKS, NUM_THREADS>>>(d_data1);
+        scenario2<<<NUM_BLOCKS, NUM_THREADS>>>(d_data2);
+        scenario3<<<NUM_BLOCKS, NUM_THREADS>>>(d_data3);
+        scenario4<<<NUM_BLOCKS, NUM_THREADS>>>(d_data4);
+        scenario5<<<NUM_BLOCKS, NUM_THREADS>>>(d_data5);
+        scenario6<<<NUM_BLOCKS, NUM_THREADS>>>(d_data6);
+        cudaDeviceSynchronize();
 
-    //Run Scenario 2
-    cudaEventRecord(start_event, 0);
-    scenario2<<<NUM_BLOCKS, NUM_THREADS>>>(d_data2);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        //Run Scenario 1
+        cudaEventRecord(start_event, 0);
+        scenario1<<<NUM_BLOCKS, NUM_THREADS>>>(d_data1);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
 
-    cudaEventElapsedTime(&scenario2_time_ms, start_event, stop_event);
+        cudaEventElapsedTime(&scenario1_time_ms, start_event, stop_event);
 
-    //Run Scenario 3
-    cudaEventRecord(start_event, 0);
-    scenario3<<<NUM_BLOCKS, NUM_THREADS>>>(d_data3);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        //Run Scenario 2
+        cudaEventRecord(start_event, 0);
+        scenario2<<<NUM_BLOCKS, NUM_THREADS>>>(d_data2);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
 
-    cudaEventElapsedTime(&scenario3_time_ms, start_event, stop_event);
+        cudaEventElapsedTime(&scenario2_time_ms, start_event, stop_event);
 
-    //Run Scenario 4
-    cudaEventRecord(start_event, 0);
-    scenario4<<<NUM_BLOCKS, NUM_THREADS>>>(d_data4);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        //Run Scenario 3
+        cudaEventRecord(start_event, 0);
+        scenario3<<<NUM_BLOCKS, NUM_THREADS>>>(d_data3);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
 
-    cudaEventElapsedTime(&scenario4_time_ms, start_event, stop_event);
+        cudaEventElapsedTime(&scenario3_time_ms, start_event, stop_event);
 
-    //Run Scenario 5
-    cudaEventRecord(start_event, 0);
-    scenario5<<<NUM_BLOCKS, NUM_THREADS>>>(d_data5);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        //Run Scenario 4
+        cudaEventRecord(start_event, 0);
+        scenario4<<<NUM_BLOCKS, NUM_THREADS>>>(d_data4);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
 
-    cudaEventElapsedTime(&scenario5_time_ms, start_event, stop_event);
+        cudaEventElapsedTime(&scenario4_time_ms, start_event, stop_event);
 
-    //Run Scenario 6
-    cudaEventRecord(start_event, 0);
-    scenario6<<<NUM_BLOCKS, NUM_THREADS>>>(d_data6);
-    cudaEventRecord(stop_event, 0);
-    cudaEventSynchronize(stop_event);
+        //Run Scenario 5
+        cudaEventRecord(start_event, 0);
+        scenario5<<<NUM_BLOCKS, NUM_THREADS>>>(d_data5);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
 
-    cudaEventElapsedTime(&scenario6_time_ms, start_event, stop_event);
+        cudaEventElapsedTime(&scenario5_time_ms, start_event, stop_event);
 
-    //Print times
-    std::cout << "Scenario: (1024 threads, inlined kernels) time: " << scenario3_time_ms << " ms\n";
-    std::cout << "Scenario: (1024 threads, individual kernels) time: " << scenario1_time_ms << " ms\n";
-    std::cout << "Scenario: (1024 threads, dynamic parallelism) time: " << scenario2_time_ms << " ms\n";
-    std::cout << "Scenario: (1024 threads, polymorphic functor mimic [shared]) time: " << scenario6_time_ms << " ms\n";
-    std::cout << "Scenario: (1024 threads, polymorphic functor mimic [device]) time: " << scenario5_time_ms << " ms\n";
-    std::cout << "Scenario: (1024 threads, polymorphic functor mimic [constant]) time: " << scenario4_time_ms << " ms\n";
+        //Run Scenario 6
+        cudaEventRecord(start_event, 0);
+        scenario6<<<NUM_BLOCKS, NUM_THREADS>>>(d_data6);
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
+
+        cudaEventElapsedTime(&scenario6_time_ms, start_event, stop_event);
+
+        //Print times
+        std::cout << "Test Results for SM Count " << i << ":\n"; 
+        std::cout << "Scenario: (1024 threads, inlined kernels) time: " << scenario3_time_ms << " ms\n";
+        std::cout << "Scenario: (1024 threads, individual kernels) time: " << scenario1_time_ms << " ms\n";
+        std::cout << "Scenario: (1024 threads, dynamic parallelism) time: " << scenario2_time_ms << " ms\n";
+        std::cout << "Scenario: (1024 threads, polymorphic functor mimic [shared]) time: " << scenario6_time_ms << " ms\n";
+        std::cout << "Scenario: (1024 threads, polymorphic functor mimic [device]) time: " << scenario5_time_ms << " ms\n";
+        std::cout << "Scenario: (1024 threads, polymorphic functor mimic [constant]) time: " << scenario4_time_ms << " ms\n";
+        std::cout << std::endl;
+
+    }
 
     return 0;
 }
